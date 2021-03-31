@@ -2,6 +2,10 @@
 
 This is the main repository for the Knotilus piecewise linear regression package. The past works on this method including many tests used in the creation of the thesis surrounding this package are located on the [Gitlab repository](https://gitlab.com/nolangormley/nolan-gormley-bgsu-thesis).
 
+The whole package of Knotilus is held within the file Knotilus.py. An example use of this package is shown in example.py. 
+
+Pull requests are always welcomed. Feel free to contact me at nolangormley@gmail.com with any questions.
+
 ## Basic Usage
 
 ### Data Preparation
