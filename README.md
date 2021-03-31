@@ -3,7 +3,7 @@
 This is the main repository for the Knotilus piecewise linear regression package. The past works on this method including many tests used in the creation of the thesis surrounding this package are located on the [Gitlab repository](https://gitlab.com/nolangormley/nolan-gormley-bgsu-thesis).
 
 ## Basic Usage
-___
+
 ### Data Preparation
 This method works on data that is standardized with between 0 and 1, we recommend the Sci-Kit Learn MinMaxScaler.
 
