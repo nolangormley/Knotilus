@@ -1,8 +1,8 @@
 from scipy.optimize import minimize, differential_evolution
 from sklearn.linear_model import LinearRegression
 from .ModelLog import ModelLog
-from .Metrics import *
 import numdifftools as nd
+from .Metrics import *
 import pandas as pd
 import numpy as np
 
@@ -14,26 +14,29 @@ class Knotilus:
                f"\tKnot Locations: {str(self.knotLoc)}\n" + \
                f"\tCoefs: {str(self.coef)}\n"
 
-    def __init__(self, X, y):
-        self.X = np.array(X)
-        self.y = np.array(y)
-        self.knotLoc   = []
+    def __init__(
+        self,
+        numKnots=2,
+        optim='Nelder-Mead',
+        error=None,
+        alpha=1e-8,
+        gamma=1e-3,
+        tolerance=None,
+        step=1e-2,
+        minAlpha=1e-8,
+        verbose=False,
+        logging=False
+    ):
+        self.optim        = optim
+        self.alpha        = alpha
+        self.gamma        = gamma
+        self.tolerance    = tolerance
+        self.step         = step
+        self.verbose      = verbose
+        self.logging      = logging
+        self.score        = None
+        self.knotLoc      = []
         self.SofterMaxVec = np.vectorize(self.SofterMax, otypes=[np.float64])
-
-    # User interface for fit method
-    def fit(self, numKnots=2, optim='Nelder-Mead', error=None, alpha=1e-8, gamma=1e-3, tolerance=None, step=1e-2, minAlpha=1e-8, verbose=False, logging=False):
-        self.optim      = optim
-        self.alpha      = alpha
-        self.gamma      = gamma
-        self.tolerance  = tolerance
-        self.step       = step
-        self.verbose    = verbose
-        self.logging    = logging
-        self.score      = None
-
-        # Create log if logging is enabled
-        if self.logging:
-            self.log = ModelLog(name_header = 'Knotilus')
 
         # Set correct error function
         if error is None:
@@ -41,8 +44,16 @@ class Knotilus:
         elif callable(error):
             self.errFunc = error
         else:
-            print('Error function not supported')
-            return
+            raise ValueError('Error function not supported')
+
+    # User interface for fit method
+    def fit(self, X: np.ndarray, y: np.ndarray):
+        self.X = np.array(X)
+        self.y = np.array(y)
+
+        # Create log if logging is enabled
+        if self.logging:
+            self.log = ModelLog(name_header = 'Knotilus')
 
         if numKnots != 'auto':
             # If not auto-knot number selection, fit single model and return result
@@ -131,7 +142,7 @@ class Knotilus:
         self.coef        = np.append(self.linearModel.intercept_, self.linearModel.coef_)
 
     # Error function for the piecewise model
-    def error(self, X):
+    def error(self, X: np.ndarray):
         # Get the error of this estimate of the knot placements
         if X.ndim > 1:
             error = []
@@ -164,7 +175,7 @@ class Knotilus:
         return error
         
     # Creates the numerical representation of the knots for each observation
-    def CreateKnots(self, X, knotLoc, useMax = False):
+    def CreateKnots(self, X: np.ndarray, knotLoc: list, useMax = False) -> np.ndarray:
         # split single dimension dataset into a multi dimensional matrix to apply the piecewise function
         knots = np.repeat(X, len(knotLoc)).reshape(X.shape[0], len(knotLoc))
 
@@ -173,6 +184,13 @@ class Knotilus:
             return np.maximum(knots-knotLoc, np.zeros(knots.shape))
         else:
             return self.SofterMaxVec(knots-knotLoc)
+
+    def predict(self, X: np.ndarray, recalculate = False, useMax = False) -> np.ndarray:
+        self.knots = self.CreateKnots(X, self.knotLoc, useMax = useMax)
+        if recalculate:
+            self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.y)
+            self.coef        = np.append(self.linearModel.intercept_, self.linearModel.coef_)
+        return np.dot(self.knots, self.coef[1:]) + self.coef[0]
 
     # Polynomial approximation of a max function
     def SofterMax(self, x):
@@ -183,14 +201,6 @@ class Knotilus:
             return x
         else:
             return 0
-
-    # Backend predict method to find error when knots are already calculated
-    def predict(self, X, recalculate = False, useMax = False):
-        self.knots = self.CreateKnots(X, self.knotLoc, useMax = useMax)
-        if recalculate:
-            self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.y)
-            self.coef        = np.append(self.linearModel.intercept_, self.linearModel.coef_)
-        return np.dot(self.knots, self.coef[1:]) + self.coef[0]
 
     # Estimated Hessian
     def Hessian(self, X):
