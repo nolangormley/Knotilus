@@ -1,7 +1,7 @@
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.utils import resample
 import matplotlib.pyplot as plt
-from Knotilus import Knotilus
+from Knotilus.Knotilus import Knotilus
 import pandas as pd
 import numpy as np
 
@@ -35,16 +35,13 @@ y_train = fullTarget[trainIndices]
 X_test  = fullVariable[testIndices]
 y_test  = fullTarget[testIndices]
 
+print('Starting the model')
 # Train model
 model = Knotilus(X_train, y_train)
-model = model.fit(numKnots='auto')
-
-# Set data to testing data
-model.variable = X_test
-model.target   = y_test
+model = model.fit(numKnots=4)
 
 # Plot the resulting model
 plt.title('Auto Knot Selection Example')
 plt.scatter(covid[0], covid[1])
-plt.plot(X_test, model.predict(), 'r')
+plt.plot(X_test, model.predict(X_test), 'r')
 plt.show()
