@@ -1,6 +1,7 @@
 from scipy.optimize import minimize, differential_evolution
 from sklearn.linear_model import LinearRegression
-from ModelLog import ModelLog
+from .ModelLog import ModelLog
+from .Metrics import *
 import numdifftools as nd
 import pandas as pd
 import numpy as np
@@ -8,14 +9,14 @@ import numpy as np
 class Knotilus:
 
     def __str__(self):
-        return f"\n\tError: {str(self.errFunc(self.__predict__(), self.target))}\n" + \
+        return f"\n\tError: {str(self.errFunc(self.predict(self.X), self.y))}\n" + \
                f"\tNum Knots: {str(self.numKnots)}\n" + \
                f"\tKnot Locations: {str(self.knotLoc)}\n" + \
                f"\tCoefs: {str(self.coef)}\n"
 
     def __init__(self, X, y):
-        self.variable  = np.array(X)
-        self.target    = np.array(y)
+        self.X = np.array(X)
+        self.y = np.array(y)
         self.knotLoc   = []
         self.SofterMaxVec = np.vectorize(self.SofterMax, otypes=[np.float64])
 
@@ -36,7 +37,7 @@ class Knotilus:
 
         # Set correct error function
         if error is None:
-            self.errFunc = self.SSE
+            self.errFunc = SSE
         elif callable(error):
             self.errFunc = error
         else:
@@ -55,13 +56,13 @@ class Knotilus:
             self.numKnots  = 1
 
             # Add another knot the the model until the improvements are not within a given threshold better
-            while self.score is None or self.errFunc(self.__predict__(), self.target) / self.score <= 1 - self.gamma:
+            while self.score is None or self.errFunc(self.predict(self.X), self.y) / self.score <= 1 - self.gamma:
                 
                 # If the model scores within threshold better than the last, keep going
                 if self.score is not None:
                     # Store values of best model
                     self.bestModel = (self.knotLoc, self.coef)
-                    self.score     = self.errFunc(self.__predict__(), self.target)
+                    self.score     = self.errFunc(self.predict(self.X), self.y)
                     # Set new knot val and continue
                     self.numKnots += 1
                     self.knotLoc   = []
@@ -73,7 +74,7 @@ class Knotilus:
             self.numKnots -= 1
             self.knotLoc   = self.bestModel[0]
             self.coef      = self.bestModel[1]
-            self.knots     = self.CreateKnots(self.variable, self.knotLoc, useMax = True)
+            self.knots     = self.CreateKnots(self.X, self.knotLoc, useMax = True)
 
             return self
 
@@ -83,13 +84,13 @@ class Knotilus:
         # This evenly spaces the knots across the dataset
         self.knotLoc = []
         for i in range(self.numKnots):
-            self.knotLoc.append(int(i * (self.variable.shape[0] / self.numKnots)))
+            self.knotLoc.append(int(i * (self.X.shape[0] / self.numKnots)))
 
         # Create the representation of knots through the dataset
-        self.knots = self.CreateKnots(self.variable, self.knotLoc)
+        self.knots = self.CreateKnots(self.X, self.knotLoc)
 
         # Run an linear model to get the initial coefficients
-        self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.target)
+        self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.y)
         self.coef        = np.append(self.linearModel.intercept_, self.linearModel.coef_)
         self.iterations  = 0
 
@@ -121,12 +122,12 @@ class Knotilus:
             )
             self.knotLoc = []
             for res in self.results.x:
-                self.knotLoc.append(self.variable[int(res)])
+                self.knotLoc.append(self.X[int(res)])
 
         # Run final model
-        self.knots       = self.CreateKnots(self.variable, self.knotLoc, useMax = True)
+        self.knots       = self.CreateKnots(self.X, self.knotLoc, useMax = True)
         self.useMax      = False
-        self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.target)
+        self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.y)
         self.coef        = np.append(self.linearModel.intercept_, self.linearModel.coef_)
 
     # Error function for the piecewise model
@@ -137,7 +138,7 @@ class Knotilus:
             for x in X:
                 self.iterations += 1
                 # Run linear model based on the given knot placements to get the coefficients
-                error.append(self.errFunc(self.predict(), self.target))
+                error.append(self.errFunc(self.predict(self.X, recalculate=True), self.y))
 
                 # Print out status of model
                 if self.verbose:
@@ -149,8 +150,8 @@ class Knotilus:
         else:
             self.iterations += 1
             # Run linear model based on the given knot placements to get the coefficients
-            self.knotLoc     = [self.variable[int(knot)] for knot in X]
-            error            = self.errFunc(self.predict(), self.target)
+            self.knotLoc     = [self.X[int(knot)] for knot in X]
+            error            = self.errFunc(self.predict(self.X, recalculate=True), self.y)
 
             # Print out status of model
             if self.verbose:
@@ -184,25 +185,12 @@ class Knotilus:
             return 0
 
     # Backend predict method to find error when knots are already calculated
-    def __predict__(self):
+    def predict(self, X, recalculate = False, useMax = False):
+        self.knots = self.CreateKnots(X, self.knotLoc, useMax = useMax)
+        if recalculate:
+            self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.y)
+            self.coef        = np.append(self.linearModel.intercept_, self.linearModel.coef_)
         return np.dot(self.knots, self.coef[1:]) + self.coef[0]
-
-    # Creates matrix representation of knots from knot locations, then predicts values
-    def predict(self, useMax = False):
-        self.knots       = self.CreateKnots(self.variable, self.knotLoc, useMax = useMax)
-        self.linearModel = LinearRegression(n_jobs=-1).fit(self.knots, self.target)
-        self.coef        = np.append(self.linearModel.intercept_, self.linearModel.coef_)
-        return np.dot(self.knots, self.coef[1:]) + self.coef[0]
-
-    # Error Functions
-    def MSE(self, yPred, yTrue):
-        return np.sum((yTrue - yPred)**2)/self.variable.shape[0]
-
-    def RMSE(self, yPred, yTrue):
-        return np.sqrt(self.MSE(yPred, yTrue))
-
-    def SSE(self, yPred, yTrue):
-        return np.sum((yTrue - yPred)**2)
 
     # Estimated Hessian
     def Hessian(self, X):
