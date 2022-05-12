@@ -1,5 +1,6 @@
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-from Knotilus import Knotilus
+from ..Knotilus import Knotilus
 from sklearn import datasets
 import pandas as pd
 import numpy as np
@@ -26,21 +27,7 @@ class diabetes_test:
     )
 
     # Set up single bootstrap split
-    np.random.seed(1)
-    trainIndices = resample(
-        np.arange(fullVariable.shape[0]),
-        replace=True,
-        n_samples=int(fullVariable.shape[0] * .8)
-    )
-
-    testIndices = np.array(
-        [ind for ind in np.arange(fullVariable.shape[0]) if ind not in trainIndices]
-    )
-
-    X_train = X[trainIndices]
-    y_train = y[trainIndices]
-    X_test  = X[testIndices]
-    y_test  = y[testIndices]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
     def test_model_parameters(self):
         assert self.model.numKnots == 2
