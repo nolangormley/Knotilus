@@ -41,7 +41,7 @@ def test_model_parameters():
     assert model.tolerance is None
     assert model.step == 1e-2
     assert model.verbose == False
-    assert model.logging == True
+    assert model.logging == False
 
 def test_model_fit():
     model = initialize_model()
