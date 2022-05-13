@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import pytest
 
-def initialize_model():
+def initialize_model(logging = False):
     model = Knotilus(
         numKnots=2,
         optim='Nelder-Mead',
@@ -16,7 +16,7 @@ def initialize_model():
         tolerance=None,
         step=1e-2,
         verbose=False,
-        logging=True
+        logging=logging
     )
 
     return model
@@ -48,7 +48,29 @@ def test_model_fit():
     X_train, X_test, y_train, y_test = get_dataset()
 
     model.fit(X_train, y_train)
+    assert model.linearModel is not None
+    assert len(model.coef) - 1 == model.numKnots
+    assert model.iterations > 0
+
+def test_createknots():
+    model = initialize_model()
+    X_train, X_test, y_train, y_test = get_dataset()
+
+    model.fit(X_train, y_train)
+
+    assert model.CreateKnots(X_train, model.knotLoc).shape == (X_train.shape[0], model.numKnots)
+
+def test_model_predict():
+    model = initialize_model()
+    X_train, X_test, y_train, y_test = get_dataset()
+
+    model.fit(X_train, y_train)
 
     # Ensure the predicted vector is the same shape as the true outcome
     assert model.predict(X_test).shape == y_test.shape
-    assert model.iterations > 0
+
+def test_softermax():
+    model = initialize_model()
+
+    assert model.SofterMax(-1) == 0
+    assert model.SofterMax(model.alpha) == model.alpha
