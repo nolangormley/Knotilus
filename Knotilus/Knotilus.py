@@ -1,7 +1,6 @@
 from scipy.optimize import minimize, differential_evolution
 from sklearn.linear_model import LinearRegression
 from .ModelLog import ModelLog
-import numdifftools as nd
 from .Metrics import *
 import pandas as pd
 import numpy as np
@@ -23,10 +22,10 @@ class Knotilus:
         gamma=1e-3,
         tolerance=None,
         step=1e-2,
-        minAlpha=1e-8,
         verbose=False,
         logging=False
     ):
+        self.numKnots     = numKnots
         self.optim        = optim
         self.alpha        = alpha
         self.gamma        = gamma
@@ -55,13 +54,11 @@ class Knotilus:
         if self.logging:
             self.log = ModelLog(name_header = 'Knotilus')
 
-        if numKnots != 'auto':
+        if self.numKnots != 'auto':
             # If not auto-knot number selection, fit single model and return result
             self.autoKnots = False
-            self.numKnots  = numKnots
             self.__fit__()
             return self
-    
         else:
             self.autoKnots = True
             self.numKnots  = 1
@@ -201,11 +198,4 @@ class Knotilus:
             return x
         else:
             return 0
-
-    # Estimated Hessian
-    def Hessian(self, X):
-        return nd.Hessian(lambda x: self.error(x))(X)
-
-    # Estimated Jacobian
-    def Jacobian(self, X):
-        return nd.Jacobian(lambda x: self.error(x))(X).ravel()
+            
