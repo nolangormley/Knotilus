@@ -27,17 +27,13 @@ df = pd.DataFrame(df)
 Split the data in a way that best suits your case. The Knotilus.fit function has many parameters as shown in the Knotilus.py file.
 ```
 # Train model
-model = Knotilus(X_train, y_train)
-model = model.fit(numKnots='auto')
+model = Knotilus(numKnots='auto')
+model = model.fit(X_train, y_train)
 ```
 
 ### Predicting with a trained model
 Set the model's variables to those that you want to predict, then use the model.predict function to predict the values. This will be changed in the future to act more like an Sci-Kit Learn regression package where the values are passed into a predict function.
 ```
-# Set data to testing data
-model.variable = X_test
-model.target   = y_test
-
 # Plot the resulting model
 plt.title('Auto Knot Selection Example')
 plt.scatter(covid[0], covid[1])
